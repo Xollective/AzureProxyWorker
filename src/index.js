@@ -49,7 +49,7 @@ export default {
       }
 
       if (!blobMetaResp.ok) {
-        return new Response(`Blob metadata fetch failed: ${blobMetaResp.status}`, { status: 502 });
+        return new Response(`Blob metadata fetch failed: ${blobMetaResp.status}: ${blobUrlWithSas}`, { status: 502 });
       }
 
       const state = blobMetaResp.headers.get('x-ms-meta-state')?.toLowerCase() || '';
