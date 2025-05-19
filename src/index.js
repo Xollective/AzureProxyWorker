@@ -19,7 +19,7 @@
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const [ , account, share, container, ...pathParts ] = url.pathname.split('/').filter(Boolean);
+    const [ account, share, container, ...pathParts ] = url.pathname.split('/').filter(Boolean);
     const sas = url.search;
 
     if (!account || !share || !container) {
