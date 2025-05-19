@@ -11,7 +11,8 @@ export default {
     }
 
     const relativePath = pathParts.length === 0 ? "" : `/${pathParts.join('/')}`;
-    const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
+    //const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
+    const fileUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.file.core.windows.net/${share}${relativePath}${sas}`;
 
     // Redirect if no path parts after container
     if (pathParts.length === 0) {
@@ -19,8 +20,7 @@ export default {
     }
     
     //https://eodqfx6tlz9yxwa.m.pipedream.net
-    const blobBaseUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.blob.core.windows.net/${container}${relativePath}`;
-    //const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
+    const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
     const blobUrlWithSas = `${blobBaseUrl}${sas}`;
 
     const query = new URLSearchParams(url.search);
