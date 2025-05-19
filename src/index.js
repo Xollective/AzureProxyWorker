@@ -11,8 +11,8 @@ export default {
     }
 
     const relativePath = pathParts.length === 0 ? "" : `/${pathParts.join('/')}`;
-    //const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
-    const fileUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.file.core.windows.net/${share}${relativePath}${sas}`;
+    const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
+    //const fileUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.file.core.windows.net/${share}${relativePath}${sas}`;
 
     // Redirect if no path parts after container
     if (pathParts.length === 0) {
