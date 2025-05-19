@@ -18,7 +18,9 @@ export default {
       return Response.redirect(fileUrl, REDIRECT_STATUS);
     }
     
-    const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
+    //https://eodqfx6tlz9yxwa.m.pipedream.net
+    const blobBaseUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.blob.core.windows.net/${container}${relativePath}`;
+    //const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
     const blobUrlWithSas = `${blobBaseUrl}${sas}`;
 
     const query = new URLSearchParams(url.search);
