@@ -1,21 +1,5 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+const REDIRECT_STATUS = 307;
 
-// export default {
-// 	async fetch(request, env, ctx) {
-// 		return new Response('Hello World!');
-// 	},
-// };
-
-
-// src/index.js
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -29,11 +13,11 @@ export default {
     const relativePath = pathParts.length === 0 ? "" : `/${pathParts.join('/')}`;
     const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
 
-	// Redirect if no path parts after container
-	if (pathParts.length === 0) {
-		return Response.redirect(fileUrl, 302);
-	}
-	
+    // Redirect if no path parts after container
+    if (pathParts.length === 0) {
+      return Response.redirect(fileUrl, REDIRECT_STATUS);
+    }
+    
     const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
     const blobUrlWithSas = `${blobBaseUrl}${sas}`;
 
@@ -44,14 +28,14 @@ export default {
       query.has('comp') ||
       query.has('restype')
     ) {
-      return Response.redirect(fileUrl, 302);
+      return Response.redirect(fileUrl, REDIRECT_STATUS);
     }
 
     try {
       const blobMetaResp = await fetch(blobUrlWithSas, { method: 'HEAD' });
 
       if (blobMetaResp.status === 404) {
-        return Response.redirect(fileUrl, 302);
+        return Response.redirect(fileUrl, REDIRECT_STATUS);
       }
 
       if (!blobMetaResp.ok) {
@@ -61,11 +45,11 @@ export default {
       const state = blobMetaResp.headers.get('x-ms-meta-state')?.toLowerCase() || '';
 
       if (!state) {
-        return Response.redirect(fileUrl, 302);
+        return Response.redirect(fileUrl, REDIRECT_STATUS);
       }
 
       if (state === 'committed') {
-        return Response.redirect(blobUrlWithSas, 302);
+        return Response.redirect(blobUrlWithSas, REDIRECT_STATUS);
       }
 
       if (state === 'uncommitted') {
@@ -98,10 +82,10 @@ export default {
           return new Response(`Failed to commit blocks: ${commitResp.status}`, { status: 502 });
         }
 
-        return Response.redirect(blobUrlWithSas, 302);
+        return Response.redirect(blobUrlWithSas, REDIRECT_STATUS);
       }
 
-      return Response.redirect(fileUrl, 302);
+      return Response.redirect(fileUrl, REDIRECT_STATUS);
 
     } catch (err) {
       return new Response(`Unexpected error: ${err.message}`, { status: 500 });
