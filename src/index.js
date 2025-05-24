@@ -80,10 +80,9 @@ function parseAzureListBlobsXML(xml) {
   }
 
   const Blobs = [];
-  const blobRe = /<Blob>[\s\S]*?<Name>(.*?)<\/Name>[\s\S]*?
-                  <Content-Length>(\d+)<\/Content-Length>[\s\S]*?
-                  <Last-Modified>(.*?)<\/Last-Modified>[\s\S]*?
-                  <Tags>([\s\S]*?)<\/Tags>[\s\S]*?<\/Blob>/gmx;
+  const blobPattern = `<Blob>[\\s\\S]*?<Name>(.*?)<\\/Name>[\\s\\S]*?<Content-Length>(\\d+)<\\/Content-Length>[\\s\\S]*?<Last-Modified>(.*?)<\\/Last-Modified>[\\s\\S]*?<Tags>([\\s\\S]*?)<\\/Tags>[\\s\\S]*?<\\/Blob>`;
+  const blobRe = new RegExp(blobPattern, 'g');
+
   let m;
   while ( (m = blobRe.exec(xml)) ) {
     const [, name, size, lastModified, tagsXml] = m;
