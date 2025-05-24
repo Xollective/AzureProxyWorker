@@ -1,114 +1,98 @@
-const REDIRECT_STATUS = 307;
-
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    const [ account, share, container, ...pathParts ] = url.pathname.split('/').filter(Boolean);
+    const [_, storageAccount, container, ...pathParts] = url.pathname.split('/');
+    const blobPath = pathParts.join('/');
     const sas = url.search;
 
-    if (!account || !share || !container) {
-      return new Response(`Missing account(${account})/share(${share})/container(${container}) in path(${url.pathname})`, { status: 400 });
+    if (!storageAccount || !container || !sas) {
+      return new Response('Invalid URL. Usage: /{account}/{container}/{path}?{sas}', { status: 400 });
     }
 
-    const relativePath = pathParts.length === 0 ? "" : `/${pathParts.join('/')}`;
-    const fileUrl = `https://${account}.file.core.windows.net/${share}${relativePath}${sas}`;
-    //const fileUrl = `https://eodqfx6tlz9yxwa.m.pipedream.net/${account}.file.core.windows.net/${share}${relativePath}${sas}`;
+    const blobServiceUrl = `https://${storageAccount}.blob.core.windows.net`;
+    const prefix = blobPath ? (blobPath.endsWith('/') ? blobPath : blobPath + '/') : '';
+    const listUrl = `${blobServiceUrl}/${container}?restype=container&comp=list&prefix=${encodeURIComponent(prefix)}&delimiter=/&include=metadata,tags${sas}`;
 
-    // Redirect if no path parts after container
-    if (pathParts.length === 0) {
-      return Response.redirect(fileUrl, REDIRECT_STATUS);
-    }
-    
-    //https://eodqfx6tlz9yxwa.m.pipedream.net
-    const blobBaseUrl = `https://${account}.blob.core.windows.net/${container}${relativePath}`;
-    const blobUrlWithSas = `${blobBaseUrl}${sas}`;
-
-    const query = new URLSearchParams(url.search);
-
-    if (
-      request.method !== 'GET' ||
-      query.has('comp') ||
-      query.has('restype')
-    ) {
-      return Response.redirect(fileUrl, REDIRECT_STATUS);
+    const listResponse = await fetch(listUrl);
+    if (!listResponse.ok) {
+      return new Response(`Failed to list blobs: ${listResponse.statusText}`, { status: listResponse.status });
     }
 
-    try {
-      const blobMetaResp = await fetch(blobUrlWithSas, { method: 'HEAD' });
+    const xml = await listResponse.text();
+    const parsed = parseAzureListBlobsXML(xml);
 
-      if (blobMetaResp.status === 404) {
-        return Response.redirect(fileUrl, REDIRECT_STATUS);
-      }
-
-      if (!blobMetaResp.ok) {
-        return new Response(`Blob metadata fetch failed: ${blobMetaResp.status}: ${blobUrlWithSas}`, { status: 502 });
-      }
-
-      const state = blobMetaResp.headers.get('x-ms-meta-state')?.toLowerCase() || '';
-
-      if (!state) {
-        return Response.redirect(fileUrl, REDIRECT_STATUS);
-      }
-
-      if (state === 'committed') {
-        return Response.redirect(blobUrlWithSas, REDIRECT_STATUS);
-      }
-
-      if (state === 'uncommitted') {
-        const getBlockListUrl = `${blobBaseUrl}?comp=blocklist&blocklisttype=all${sas}`;
-        const blockListResp = await fetch(getBlockListUrl);
-        if (!blockListResp.ok) {
-          return new Response(`Failed to get block list: ${blockListResp.status}`, { status: 502 });
-        }
-
-        const xml = await blockListResp.text();
-        const uncommittedBlockNames = extractUncommittedBlockNames(xml);
-        if (uncommittedBlockNames.length === 0) {
-          return new Response('No uncommitted blocks found.', { status: 400 });
-        }
-
-        const commitXml = buildPutBlockListXml(uncommittedBlockNames);
-
-        const commitUrl = `${blobBaseUrl}?comp=blocklist${sas}`;
-        const commitResp = await fetch(commitUrl, {
-          method: 'PUT',
-          headers: {
-            'x-ms-blob-content-type': 'application/octet-stream',
-            'x-ms-meta-state': 'committed',
-            'Content-Type': 'application/xml',
-          },
-          body: commitXml
-        });
-
-        if (!commitResp.ok) {
-          return new Response(`Failed to commit blocks: ${commitResp.status}`, { status: 502 });
-        }
-
-        return Response.redirect(blobUrlWithSas, REDIRECT_STATUS);
-      }
-
-      return Response.redirect(fileUrl, REDIRECT_STATUS);
-
-    } catch (err) {
-      return new Response(`Unexpected error: ${err.message}`, { status: 500 });
+    // If there are no blobs or prefixes, assume it's a file and redirect
+    if (parsed.Blobs.length === 0 && parsed.Directories.length === 0 && blobPath) {
+      const blobUrl = `${blobServiceUrl}/${container}/${blobPath}${sas}`;
+      return Response.redirect(blobUrl, 302);
     }
+
+    // Render directory view
+    const rows = [];
+
+    for (const dir of parsed.Directories) {
+      const dirLink = `/${storageAccount}/${container}/${dir.name}${sas}`;
+      const displayName = dir.name.slice(blobPath.length);
+      rows.push(`<tr><td><a href="${dirLink}">${displayName}</a></td><td>—</td><td>—</td><td>—</td></tr>`);
+      
+      //rows.push(`<tr><td><a href="${dir.name}">${dir.name}</a></td><td>—</td><td>—</td><td>—</td></tr>`);
+    }
+
+    for (const blob of parsed.Blobs) {
+      const size = blob.size;
+      const lastModified = blob.lastModified;
+      const state = blob.tags['state'] || '';
+      const displayName = blob.name.slice(blobPath.length);
+      const blobUrl = `${blobServiceUrl}/${container}/${encodeURIComponent(blob.name)}${sas}`;
+      rows.push(`<tr><td><a href="${blobUrl}">${displayName}</a></td><td>${blob.size}</td><td>${blob.lastModified}</td><td>${blob.tags['state'] || ''}</td></tr>`);
+      
+      // rows.push(`<tr><td><a href="${name}">${name}</a></td><td>${size}</td><td>${lastModified}</td><td>${state}</td></tr>`);
+    }
+
+    const html = `
+      <html>
+      <head><title>Index of /${blobPath}</title></head>
+      <body>
+        <h1>Index of /${blobPath}</h1>
+        <table border="1" cellpadding="4" cellspacing="0">
+          <thead>
+            <tr><th>Name</th><th>Size (bytes)</th><th>Last Modified</th><th>State</th></tr>
+          </thead>
+          <tbody>${rows.join('')}</tbody>
+        </table>
+      </body>
+      </html>
+    `;
+
+    return new Response(html, {
+      headers: { 'Content-Type': 'text/html' }
+    });
   }
 };
 
-function extractUncommittedBlockNames(xml) {
-  const uncommitted = [];
-  const match = xml.match(/<UncommittedBlocks>([\s\S]*?)<\/UncommittedBlocks>/i);
-  if (!match) return [];
-  const blockList = match[1];
-  const nameRegex = /<Name>(.*?)<\/Name>/g;
-  let nameMatch;
-  while ((nameMatch = nameRegex.exec(blockList)) !== null) {
-    uncommitted.push(nameMatch[1]);
-  }
-  return uncommitted;
-}
+function parseAzureListBlobsXML(xmlText) {
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(xmlText, "application/xml");
 
-function buildPutBlockListXml(blockNames) {
-  const blockListXml = blockNames.map(name => `<Latest>${name}</Latest>`).join('');
-  return `<?xml version="1.0" encoding="utf-8"?><BlockList>${blockListXml}</BlockList>`;
+  const blobElems = Array.from(xml.getElementsByTagName("Blob"));
+  const blobs = blobElems.map(blob => {
+    const name = blob.getElementsByTagName("Name")[0]?.textContent || '';
+    const size = blob.getElementsByTagName("Content-Length")[0]?.textContent || '';
+    const lastModified = blob.getElementsByTagName("Last-Modified")[0]?.textContent || '';
+    const tagElems = blob.getElementsByTagName("Tag");
+    const tags = {};
+    for (const tag of tagElems) {
+      const key = tag.getElementsByTagName("Key")[0]?.textContent;
+      const value = tag.getElementsByTagName("Value")[0]?.textContent;
+      if (key) tags[key] = value;
+    }
+    return { name, size, lastModified, tags };
+  });
+
+  const prefixElems = Array.from(xml.getElementsByTagName("BlobPrefix"));
+  const directories = prefixElems.map(prefix => {
+    return { name: prefix.getElementsByTagName("Name")[0]?.textContent || '' };
+  });
+
+  return { Blobs: blobs, Directories: directories };
 }
