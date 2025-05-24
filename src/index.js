@@ -11,7 +11,7 @@ export default {
 
     const blobServiceUrl = `https://${storageAccount}.blob.core.windows.net`;
     const prefix = blobPath ? (blobPath.endsWith('/') ? blobPath : blobPath + '/') : '';
-    const listUrl = `${blobServiceUrl}/${container}?restype=container&comp=list&prefix=${encodeURIComponent(prefix)}&delimiter=/&include=metadata,tags${sas}`;
+    const listUrl = `${blobServiceUrl}/${container}${sas}&restype=container&comp=list&prefix=${encodeURIComponent(prefix)}&delimiter=/&include=metadata,tags`;
 
     const listResponse = await fetch(listUrl);
     if (!listResponse.ok) {
