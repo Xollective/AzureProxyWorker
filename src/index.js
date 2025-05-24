@@ -6,7 +6,7 @@ export default {
     const sas = url.search;
 
     if (!storageAccount || !container || !sas) {
-      return new Response('Invalid URL. Usage: /{account}/{container}/{path}?{sas}', { status: 400 });
+      return new Response(`Invalid URL. Usage: /{account}(${storageAccount})/{container}(${container})/{path}(${blobPath})?{sas}(${sas})`, { status: 400 });
     }
 
     const blobServiceUrl = `https://${storageAccount}.blob.core.windows.net`;
@@ -15,7 +15,7 @@ export default {
 
     const listResponse = await fetch(listUrl);
     if (!listResponse.ok) {
-      return new Response(`Failed to list blobs: ${listResponse.statusText}`, { status: listResponse.status });
+      return new Response(`Failed to list blobs: ${listResponse.statusText} url: '${listUrl}'`, { status: listResponse.status });
     }
 
     const xml = await listResponse.text();
