@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "azure-proxy-worker",
+	"name": "azblobexp",
 	"main": "src/index.js",
 	"compatibility_date": "2025-05-19",
 	"observability": {
