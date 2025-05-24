@@ -9,7 +9,9 @@ export default {
       return new Response(`Invalid URL. Usage: /{account}(${storageAccount})/{container}(${container})/{path}(${blobPath})?{sas}(${sas})`, { status: 400 });
     }
 
-    const blobServiceUrl = `https://${storageAccount}.blob.core.windows.net`;
+    const blobServiceUrl = storageAccount.includes('.blob.core.windows.net')
+      ? `https://${storageAccount}`
+      : `https://${storageAccount}.blob.core.windows.net`;
     const prefix = blobPath ? (blobPath.endsWith('/') ? blobPath : blobPath + '/') : '';
     const listUrl = `${blobServiceUrl}/${container}${sas}&restype=container&comp=list&prefix=${encodeURIComponent(prefix)}&delimiter=/&include=metadata,tags`;
 
