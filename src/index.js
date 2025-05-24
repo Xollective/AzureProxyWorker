@@ -72,29 +72,27 @@ export default {
   }
 };
 
-function parseAzureListBlobsXML(xmlText) {
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(xmlText, "application/xml");
+// Minimal XML parser via regex
+function parseAzureListBlobsXML(xml) {
+  const Directories = [];
+  for (const m of xml.matchAll(/<BlobPrefix><Name>(.*?)<\/Name><\/BlobPrefix>/g)) {
+    Directories.push({ name: m[1] });
+  }
 
-  const blobElems = Array.from(xml.getElementsByTagName("Blob"));
-  const blobs = blobElems.map(blob => {
-    const name = blob.getElementsByTagName("Name")[0]?.textContent || '';
-    const size = blob.getElementsByTagName("Content-Length")[0]?.textContent || '';
-    const lastModified = blob.getElementsByTagName("Last-Modified")[0]?.textContent || '';
-    const tagElems = blob.getElementsByTagName("Tag");
+  const Blobs = [];
+  const blobRe = /<Blob>[\s\S]*?<Name>(.*?)<\/Name>[\s\S]*?
+                  <Content-Length>(\d+)<\/Content-Length>[\s\S]*?
+                  <Last-Modified>(.*?)<\/Last-Modified>[\s\S]*?
+                  <Tags>([\s\S]*?)<\/Tags>[\s\S]*?<\/Blob>/gmx;
+  let m;
+  while ( (m = blobRe.exec(xml)) ) {
+    const [, name, size, lastModified, tagsXml] = m;
     const tags = {};
-    for (const tag of tagElems) {
-      const key = tag.getElementsByTagName("Key")[0]?.textContent;
-      const value = tag.getElementsByTagName("Value")[0]?.textContent;
-      if (key) tags[key] = value;
+    for (const t of tagsXml.matchAll(/<Tag><Key>(.*?)<\/Key><Value>(.*?)<\/Value><\/Tag>/g)) {
+      tags[t[1]] = t[2];
     }
-    return { name, size, lastModified, tags };
-  });
+    Blobs.push({ name, size: Number(size), lastModified, tags });
+  }
 
-  const prefixElems = Array.from(xml.getElementsByTagName("BlobPrefix"));
-  const directories = prefixElems.map(prefix => {
-    return { name: prefix.getElementsByTagName("Name")[0]?.textContent || '' };
-  });
-
-  return { Blobs: blobs, Directories: directories };
+  return { Directories, Blobs };
 }
