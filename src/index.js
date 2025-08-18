@@ -10,6 +10,44 @@
 
 export default {
 	async fetch(request, env, ctx) {
-		return new Response('Hello World!');
+		const url = new URL(request.url);
+		const [ organization, webhookName ] = url.pathname.split('/').filter(Boolean);
+
+		const azdevUrl = `POST https://dev.azure.com/${organization}/_apis/public/distributedtask/webhooks/${webhookName}?api-version=7.2-preview.2`;
+
+		const signature = request.headers.get('X-Hub-Signature');
+		let sha1Prefix = '';
+		if (signature && signature.startsWith('sha1=')) {
+			sha1Prefix = signature.slice(0, 5); // "sha1"
+		}
+
+		const signature256 = request.headers.get('X-Hub-Signature-256');
+		let sha256 = '';
+		if (signature256 && signature256.startsWith('sha256=')) {
+			sha256 = signature256.slice(7); // remove "sha256=" prefix
+		}
+
+		const azdevRequest = new Request(
+			azdevUrl,
+			{
+				method: 'POST',
+				headers: (() => {
+					const headers = new Headers(request.headers);
+					if (signature) {
+						headers.set('X-Hub-Signature', signature);
+					}
+					if (signature256) {
+						headers.set('X-Hub-Signature-256', signature256);
+					}
+					return headers;
+				})(),
+				body: request.body,
+				redirect: 'follow',
+			}
+		);
+
+		const azdevResponse = await fetch(azdevRequest);
+
+		return azdevResponse;
 	},
 };
