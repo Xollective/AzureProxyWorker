@@ -16,15 +16,15 @@ export default {
 		const azdevUrl = `https://dev.azure.com/${organization}/_apis/public/distributedtask/webhooks/${webhookName}?api-version=7.2-preview.2`;
 
 		const signature = request.headers.get('X-Hub-Signature');
-		let sha1Prefix = '';
+		let sha1 = '';
 		if (signature && signature.startsWith('sha1=')) {
-			sha1Prefix = signature.slice(0, 5); // "sha1"
+			sha1 = signature.slice(5); // remove prefix
 		}
 
 		const signature256 = request.headers.get('X-Hub-Signature-256');
 		let sha256 = '';
 		if (signature256 && signature256.startsWith('sha256=')) {
-			sha256 = signature256.slice(7); // remove "sha256=" prefix
+			sha256 = signature256.slice(7); // remove prefix
 		}
 
 		const azdevRequest = new Request(
@@ -34,10 +34,10 @@ export default {
 				headers: (() => {
 					const headers = new Headers(request.headers);
 					if (signature) {
-						headers.set('X-Hub-Signature', signature);
+						headers.set('X-Hub-Signature', sha1);
 					}
 					if (signature256) {
-						headers.set('X-Hub-Signature-256', signature256);
+						headers.set('X-Hub-Signature-256', sha256);
 					}
 					return headers;
 				})(),
