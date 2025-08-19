@@ -13,7 +13,7 @@ export default {
 		const url = new URL(request.url);
 		const [ organization, webhookName ] = url.pathname.split('/').filter(Boolean);
 
-		const azdevUrl = `https://dev.azure.com/${organization}/_apis/public/distributedtask/webhooks/${webhookName}?api-version=7.2-preview.2`;
+		const azdevUrl = `https://dev.azure.com/${organization}/_apis/public/distributedtask/webhooks/${webhookName}?api-version=6.0-preview`;
 
 		const signature = request.headers.get('X-Hub-Signature');
 		let sha1 = '';
