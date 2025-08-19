@@ -27,6 +27,30 @@ export default {
 			sha256 = signature256.slice(7); // remove prefix
 		}
 
+		console.log(`Forwarding request to Azure DevOps: ${azdevUrl}`);
+		console.log(`X-Hub-Signature: ${sha1}`);
+		console.log(`X-Hub-Signature-256: ${sha256}`);
+		const contentLength = request.headers.get('content-length');
+		console.log(`Content-Length: ${contentLength !== null ? contentLength : 'unknown'}`);
+
+
+		const randomFileName = `webhook-${sha1}-${Date.now()}.json`;
+		const azureStorageUrl = `https://medix.blob.core.windows.net/media/webhook/${randomFileName}?sv=2023-01-03&st=2025-08-19T01%3A54%3A00Z&se=2025-08-29T01%3A54%3A00Z&sr=c&sp=acw&sig=iwMnApkIq9ISq7bQxTAXgIM160Iv%2F7OYocudVZ7%2FHdo%3D`;
+
+		console.log(`Uploading request body to Azure Storage: ${azureStorageUrl}`);
+		
+		const body = await request.clone().arrayBuffer();
+		const uploadResponse = await fetch(azureStorageUrl, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-ms-blob-type': 'BlockBlob',
+				'Content-Length': body.byteLength,
+			},
+			body,
+		});
+		console.log(`Azure Storage upload status: ${uploadResponse.status}`);
+
 		const azdevRequest = new Request(
 			azdevUrl,
 			{
@@ -41,7 +65,7 @@ export default {
 					}
 					return headers;
 				})(),
-				body: request.body,
+				body: body,
 				redirect: 'follow',
 			}
 		);
